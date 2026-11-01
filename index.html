@@ -441,6 +441,7 @@
       padding: 4px;
     }
 
+    /* Модальное окно */
     .modal-overlay {
       position: fixed;
       inset: 0;
@@ -458,8 +459,8 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      padding: 20px;
-      max-width: 560px;
+      padding: 22px;
+      max-width: 580px;
       width: 100%;
       display: flex;
       flex-direction: column;
@@ -473,6 +474,10 @@
       text-align: center;
       cursor: pointer;
       background: rgba(24, 34, 52, 0.5);
+    }
+
+    .drop-zone:hover {
+      border-color: var(--primary);
     }
 
     .autocomplete-box {
@@ -550,7 +555,7 @@
   </header>
 
   <main>
-    <!-- 1. КАРТОЧКИ (ПРАВОПИСАНИЕ) -->
+    <!-- 1. РЕЖИМ КАРТОЧЕК -->
     <section class="view-panel active" id="trainerPanel">
       <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
         <span style="font-size: 13px; color: var(--text-muted);" id="currentCardNum">1 из 5</span>
@@ -591,7 +596,7 @@
       </div>
     </section>
 
-    <!-- 2. ЗАУЧИВАНИЕ (LEARN) -->
+    <!-- 2. РЕЖИМ ЗАУЧИВАНИЯ -->
     <section class="view-panel" id="learnPanel">
       <div class="learn-badges">
         <span class="badge-pill new" id="learnRemainingBadge">Осталось: 0</span>
@@ -620,7 +625,7 @@
       </div>
     </section>
 
-    <!-- 3. ТЕСТ (EXAM) -->
+    <!-- 3. РЕЖИМ ТЕСТА -->
     <section class="view-panel" id="testPanel">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <h3 style="font-size: 18px;">Контрольный тест</h3>
@@ -652,7 +657,7 @@
 
         <div class="action-row">
           <button class="btn-secondary" style="background: var(--primary); color: #fff; border: none;" onclick="addNewTermManual()">+ Добавить</button>
-          <button class="btn-secondary" onclick="openOcrModal()">📷 Сканировать фото / методичку</button>
+          <button class="btn-secondary" onclick="openOcrModal()">✨ Сканировать через нейросеть Gemini</button>
           <button class="btn-secondary" onclick="exportData()">Скопировать список</button>
         </div>
       </div>
@@ -667,32 +672,40 @@
     </section>
   </main>
 
-  <!-- Модалка распознавания фото -->
+  <!-- МОДАЛЬНОЕ ОКНО GEMINI VISION OCR -->
   <div class="modal-overlay" id="ocrModal">
     <div class="modal-box">
       <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h3 style="font-size: 16px;">Распознавание терминов из фото</h3>
+        <h3 style="font-size: 17px; font-weight: 700;">✨ Распознавание через нейросеть Gemini</h3>
         <button onclick="closeOcrModal()" style="background: none; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer;">✕</button>
       </div>
-      <p style="font-size: 12px; color: var(--text-muted);">
-        Картинка автоматически делится на колонки, убираются знаки долготы/краткости и мусор.
-      </p>
-      <div class="drop-zone" onclick="document.getElementById('fileInput').click()">
-        <div>Сделайте снимок или выберите файл</div>
-        <div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">PNG, JPG учебников и конспектов</div>
-        <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+      
+      <!-- Поле для ввода и сохранения API-ключа -->
+      <div style="background: var(--surface-card); border: 1px solid var(--border); padding: 12px; border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 6px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 12px; font-weight: 600; color: var(--text-muted);">Ваш бесплатный Gemini API Key:</span>
+          <a href="https://aistudio.google.com/" target="_blank" style="color: var(--primary); font-size: 11px; text-decoration: none;">Получить ключ ↗</a>
+        </div>
+        <input type="password" id="geminiApiKeyInput" class="spell-input" style="font-size: 13px; padding: 8px 12px;" placeholder="Вставьте сюда AIzaSy...">
       </div>
-      <div id="ocrStatusText" style="font-size: 13px; color: var(--text-muted);">Ожидание файла...</div>
-      <textarea id="ocrExtractedText" style="width: 100%; height: 130px; background: var(--surface-card); border: 1px solid var(--border); color: #fff; font-family: 'JetBrains Mono'; padding: 8px; border-radius: 8px; font-size: 12px;"></textarea>
+
+      <div class="drop-zone" onclick="document.getElementById('fileInput').click()">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" style="margin-bottom: 6px;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <div style="font-weight: 600; font-size: 14px;">Выберите фото или скриншот учебника</div>
+        <div style="font-size: 12px; color: var(--text-dim); margin-top: 3px;">Нейросеть сама разберет колонки, пробелы и удалит знаки ударений</div>
+        <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="handleGeminiUpload(event)">
+      </div>
+
+      <div id="ocrStatusText" style="font-size: 13px; color: var(--text-muted);">Ожидание изображения...</div>
+      
+      <textarea id="ocrExtractedText" style="width: 100%; height: 140px; background: var(--surface-card); border: 1px solid var(--border); color: #fff; font-family: 'JetBrains Mono'; padding: 10px; border-radius: 8px; font-size: 12px; outline: none;" placeholder="Здесь появятся найденные пары..."></textarea>
+
       <div style="display: flex; gap: 8px; justify-content: flex-end;">
         <button class="btn-secondary" onclick="closeOcrModal()">Отмена</button>
-        <button class="btn-secondary" style="background: var(--primary); color: #fff;" onclick="importOcrTerms()">Добавить в колоду</button>
+        <button class="btn-secondary" style="background: var(--primary); color: #fff; border: none;" onclick="importOcrTerms()">Добавить в колоду</button>
       </div>
     </div>
   </div>
-
-  <canvas id="cropCanvas" style="display: none;"></canvas>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
   <script>
     const MEDICAL_DICT = [
@@ -769,6 +782,13 @@
     }
 
     function init() {
+      // Подгрузка сохраненного ключа Gemini
+      const savedKey = localStorage.getItem('gemini_api_key');
+      if (savedKey) document.getElementById('geminiApiKeyInput').value = savedKey;
+      document.getElementById('geminiApiKeyInput').addEventListener('input', (e) => {
+        localStorage.setItem('gemini_api_key', e.target.value.trim());
+      });
+
       renderTermList();
       showCard();
       setupAutocomplete();
@@ -1163,86 +1183,82 @@
       return (s || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
-    /* ---------------- ДВУХКОЛОНОЧНЫЙ OCR С АВТОРАЗРЕЗАНИЕМ ---------------- */
+    /* ---------------- GEMINI AI VISION OCR ---------------- */
     function openOcrModal() { document.getElementById('ocrModal').classList.add('active'); }
     function closeOcrModal() { document.getElementById('ocrModal').classList.remove('active'); }
 
-    function parseTextToPairs(rawText) {
-      const lines = rawText.split('\n');
-      const results = [];
-      lines.forEach(rawLine => {
-        let line = stripDiacritics(rawLine.trim());
-        if (line.length < 4 || /минимум/i.test(line)) return;
-
-        let match = line.match(/^([a-zA-Z.,\s()]+?)\s*(?:[—–\-:=])\s*([а-яА-ЯёЁ0-9.,\s()]+)$/);
-        if (!match) {
-          match = line.match(/^([a-zA-Z][a-zA-Z.,\s()]{2,})\s{2,}([а-яА-ЯёЁ][а-яА-ЯёЁ0-9.,\s()]{2,})$/);
-        }
-
-        if (match) {
-          let lat = match[1].trim().replace(/\s+/g, ' ');
-          let ru = match[2].trim().replace(/\s+/g, ' ');
-          if (/[a-zA-Z]/.test(lat) && /[а-яА-ЯёЁ]/.test(ru)) {
-            results.push({ lat, ru });
-          }
-        }
+    // Конвертация файла в Base64
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
       });
-      return results;
     }
 
-    async function handleImageUpload(e) {
+    async function handleGeminiUpload(e) {
       const file = e.target.files[0];
       if (!file) return;
+
+      const apiKey = document.getElementById('geminiApiKeyInput').value.trim();
       const status = document.getElementById('ocrStatusText');
-      status.textContent = "Анализ макета (деление на колонки)...";
+      const output = document.getElementById('ocrExtractedText');
 
-      const img = new Image();
-      img.onload = async () => {
-        const canvas = document.getElementById('cropCanvas');
-        const ctx = canvas.getContext('2d');
-        
-        try {
-          const worker = await Tesseract.createWorker(['rus', 'lat'], 1);
-          let allPairs = [];
+      if (!apiKey) {
+        status.textContent = "❌ Вставьте ваш Gemini API Key в поле выше!";
+        return;
+      }
 
-          // Проверяем, нужно ли делить страницу пополам (если широкая)
-          const isTwoColumns = img.width > img.height * 1.1;
+      status.textContent = "Отправка изображения нейросети Gemini...";
+      output.value = "";
 
-          if (isTwoColumns) {
-            status.textContent = "Сканирование левой колонки...";
-            canvas.width = (img.width / 2) * 2;
-            canvas.height = img.height * 2;
-            ctx.drawImage(img, 0, 0, img.width / 2, img.height, 0, 0, canvas.width, canvas.height);
-            const resLeft = await worker.recognize(canvas.toDataURL('image/png'));
-            allPairs = allPairs.concat(parseTextToPairs(resLeft.data.text));
+      try {
+        const base64Data = await fileToBase64(file);
 
-            status.textContent = "Сканирование правой колонки...";
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, img.width / 2, 0, img.width / 2, img.height, 0, 0, canvas.width, canvas.height);
-            const resRight = await worker.recognize(canvas.toDataURL('image/png'));
-            allPairs = allPairs.concat(parseTextToPairs(resRight.data.text));
-          } else {
-            status.textContent = "Сканирование страницы...";
-            canvas.width = img.width * 2;
-            canvas.height = img.height * 2;
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            const res = await worker.recognize(canvas.toDataURL('image/png'));
-            allPairs = parseTextToPairs(res.data.text);
-          }
+        const prompt = `Ты профессиональный распознаватель анатомических словарей и медицинских терминов. 
+Просканируй изображение внимательно. На странице может быть несколько колонок, списков или таблиц.
+Извлеки ВСЕ анатомические термины с их словарной формой (латынь с окончаниями падежа и родом) и русским переводом.
+Убери все знаки ударения, долготы и краткости над гласными (например, 'digĭtus' замени на 'digitus', 'facies, ēī f' на 'facies, ei f').
+Проигнорируй номера страниц, заголовки вроде 'ЛЕКСИЧЕСКИЙ МИНИМУМ' и мусор интерфейса.
+Верни результат СТРОГО списком строк, каждая строка в формате:
+латинский термин — русский перевод
+Больше никакого текста, пояснений или markdown-тегов не пиши.`;
 
-          await worker.terminate();
+        const requestBody = {
+          contents: [{
+            parts: [
+              { text: prompt },
+              { inline_data: { mime_type: file.type || "image/jpeg", data: base64Data } }
+            ]
+          }]
+        };
 
-          if (allPairs.length) {
-            document.getElementById('ocrExtractedText').value = allPairs.map(p => `${p.lat} — ${p.ru}`).join('\n');
-            status.textContent = `Успешно распознано пар: ${allPairs.length}`;
-          } else {
-            status.textContent = "Термины не распознаны автоматически. Вставьте список вручную.";
-          }
-        } catch (err) {
-          status.textContent = "Ошибка OCR. Скопируйте текст через системный Live Text.";
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody)
+        });
+
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error?.message || "Ошибка запроса к API");
         }
-      };
-      img.src = URL.createObjectURL(file);
+
+        const data = await res.json();
+        const extractedText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+        if (extractedText) {
+          output.value = extractedText.trim();
+          const count = extractedText.trim().split('\n').filter(l => l.includes('—') || l.includes('-')).length;
+          status.textContent = `✅ Успешно извлечено терминов: ${count}`;
+        } else {
+          status.textContent = "Текст не обнаружен. Попробуйте другой снимок.";
+        }
+      } catch (err) {
+        console.error(err);
+        status.textContent = `Ошибка: ${err.message}. Проверьте правильность API ключа.`;
+      }
     }
 
     function importOcrTerms() {
@@ -1251,14 +1267,21 @@
       val.split('\n').forEach(line => {
         const parts = line.split(/[—–\-:=]/);
         if (parts.length >= 2) {
-          terms.push({ lat: parts[0].trim(), ru: parts[1].trim() });
-          added++;
+          const lat = parts[0].trim();
+          const ru = parts.slice(1).join(' ').trim();
+          if (lat && ru) {
+            terms.push({ lat, ru });
+            added++;
+          }
         }
       });
       if (added) {
         saveTerms();
         renderTermList();
         closeOcrModal();
+        alert(`Успешно добавлено ${added} терминов!`);
+      } else {
+        alert("В поле нет пар для добавления.");
       }
     }
 
