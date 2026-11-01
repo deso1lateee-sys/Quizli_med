@@ -554,7 +554,7 @@
   </header>
 
   <main>
-    <!-- 1. КАРТОЧКИ -->
+    <!-- 1. РЕЖИМ КАРТОЧЕК -->
     <section class="view-panel active" id="trainerPanel">
       <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
         <span style="font-size: 13px; color: var(--text-muted);" id="currentCardNum">1 из 5</span>
@@ -595,7 +595,7 @@
       </div>
     </section>
 
-    <!-- 2. ЗАУЧИВАНИЕ -->
+    <!-- 2. РЕЖИМ ЗАУЧИВАНИЯ -->
     <section class="view-panel" id="learnPanel">
       <div class="learn-badges">
         <span class="badge-pill new" id="learnRemainingBadge">Осталось: 0</span>
@@ -624,7 +624,7 @@
       </div>
     </section>
 
-    <!-- 3. ТЕСТ -->
+    <!-- 3. РЕЖИМ ТЕСТА -->
     <section class="view-panel" id="testPanel">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <h3 style="font-size: 18px;">Контрольный тест</h3>
@@ -781,17 +781,28 @@
 
     function init() {
       const savedKey = localStorage.getItem('gemini_api_key');
-      if (savedKey) document.getElementById('geminiApiKeyInput').value = savedKey;
-      document.getElementById('geminiApiKeyInput').addEventListener('input', (e) => {
-        localStorage.setItem('gemini_api_key', e.target.value.trim());
-      });
+      if (savedKey) {
+        const keyInput = document.getElementById('geminiApiKeyInput');
+        if (keyInput) keyInput.value = savedKey;
+      }
+
+      const keyInput = document.getElementById('geminiApiKeyInput');
+      if (keyInput) {
+        keyInput.addEventListener('input', (e) => {
+          localStorage.setItem('gemini_api_key', e.target.value.trim());
+        });
+      }
 
       renderTermList();
       showCard();
       setupAutocomplete();
-      document.getElementById('answerInput').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') handleCardAction();
-      });
+
+      const ansInput = document.getElementById('answerInput');
+      if (ansInput) {
+        ansInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') handleCardAction();
+        });
+      }
     }
 
     function switchTab(tab) {
@@ -826,8 +837,9 @@
       const item = terms[currentIndex];
       document.getElementById('cardScene').className = 'card-scene';
       document.getElementById('feedbackBox').className = 'feedback-box';
-      document.getElementById('answerInput').value = '';
-      document.getElementById('answerInput').focus();
+      const ansInput = document.getElementById('answerInput');
+      ansInput.value = '';
+      ansInput.focus();
 
       if (!isReversed) {
         document.getElementById('promptCategory').textContent = "Русский перевод → Введите латынь";
@@ -1086,7 +1098,8 @@
         } else if (q.type === 1) {
           q.correct = q.userAns === q.isTrueExpected;
         } else {
-          const val = document.querySelector(`.test-input-${idx}`).value;
+          const inputEl = document.querySelector(`.test-input-${idx}`);
+          const val = inputEl ? inputEl.value : "";
           q.correct = normalizeTerm(val) === normalizeTerm(q.item.lat);
         }
         if (q.correct) correctCount++;
@@ -1191,7 +1204,9 @@
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-async function handleGeminiUpload(e) {
+    }
+
+    async function handleGeminiUpload(e) {
       const file = e.target.files[0];
       if (!file) return;
 
@@ -1263,6 +1278,7 @@ async function handleGeminiUpload(e) {
         status.textContent = `Ошибка: ${err.message}`;
       }
     }
+
     function importOcrTerms() {
       const val = document.getElementById('ocrExtractedText').value;
       let added = 0;
