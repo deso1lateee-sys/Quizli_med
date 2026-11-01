@@ -1191,9 +1191,7 @@
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-    }
-
-    async function handleGeminiUpload(e) {
+async function handleGeminiUpload(e) {
       const file = e.target.files[0];
       if (!file) return;
 
@@ -1230,25 +1228,24 @@
           }]
         };
 
-        // Запрос к актуальной модели gemini-2.0-flash
-        const modelsToTry = ['gemini-2.0-flash', 'gemini-1.5-flash-latest'];
+        const models = ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-1.5-flash-latest'];
         let res = null;
-        let lastError = null;
+        let lastError = "";
 
-        for (const model of modelsToTry) {
-          status.textContent = `Распознавание через ${model}...`;
+        for (const model of models) {
+          status.textContent = `Запрос к модели ${model}...`;
           res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestBody)
           });
           if (res.ok) break;
-          const errBody = await res.json().catch(() => ({}));
-          lastError = errBody.error?.message || `Ошибка модели ${model}`;
+          const errData = await res.json().catch(() => ({}));
+          lastError = errData.error?.message || `Ошибка ${res.status}`;
         }
 
         if (!res || !res.ok) {
-          throw new Error(lastError || "Не удалось подключиться к модели");
+          throw new Error(lastError || "Не удалось связаться с моделями Gemini");
         }
 
         const data = await res.json();
@@ -1263,10 +1260,9 @@
         }
       } catch (err) {
         console.error(err);
-        status.textContent = `Ошибка: ${err.message}.`;
+        status.textContent = `Ошибка: ${err.message}`;
       }
     }
-
     function importOcrTerms() {
       const val = document.getElementById('ocrExtractedText').value;
       let added = 0;
