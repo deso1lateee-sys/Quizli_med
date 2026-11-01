@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+<html lang="ru" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Quizli — Латынь и Анатомический минимум</title>
+  
+  <!-- iOS PWA Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Quizli">
+  <meta name="theme-color" content="#090d16">
+  <link rel="apple-touch-icon" href="https://placehold.co/180x180/6366f1/ffffff?text=⚕">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"SF Pro Text"', 'Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .pt-safe { padding-top: max(env(safe-area-inset-top), 1rem); }
+    .pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 1.25rem); }
+    
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+    .shake-anim { animation: shake 0.35s cubic-bezier(.36,.07,.19,.97) both; }
+
+    @keyframes popIn {
+      0% { opacity: 0; transform: scale(0.96); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    .pop-anim { animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 h-full flex flex-col font-sans select-none antialiased">
+
+  <!-- Header with iOS safe padding -->
+  <header class="pt-safe border-b border-zinc-800/80 bg-zinc-900/80 backdrop-blur-xl sticky top-0 z-30">
+    <div class="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+      
+      <!-- Brand & Deck Picker Dropdown -->
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-base shadow-lg shadow-indigo-600/30">
+          ⚕
+        </div>
+        <div class="relative">
+          <button onclick="toggleDeckDropdown()" class="flex items-center gap-1.5 text-sm font-semibold tracking-tight hover:opacity-80 transition-opacity py-1 px-1.5 rounded-lg">
+            <span id="activeDeckName" class="max-w-[150px] sm:max-w-[210px] truncate text-zinc-100">Анатомический минимум</span>
+            <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+          </button>
+
+          <!-- Dropdown menu -->
+          <div id="deckDropdown" class="hidden absolute top-full left-0 mt-2 w-64 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl z-40 p-1.5 pop-anim">
+            <div class="text-[11px] font-semibold uppercase tracking-wider text-zinc-400 px-3 py-1.5">Колоды терминов</div>
+            <div id="deckDropdownList" class="max-h-52 overflow-y-auto space-y-0.5"></div>
+            <div class="border-t border-zinc-800 mt-1 pt-1">
+              <button onclick="openNewDeckModal()" class="w-full text-left px-3 py-2 text-xs font-medium text-indigo-400 hover:bg-zinc-800 rounded-xl transition-colors flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                Создать новую колоду
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Segmented Navigation Controls -->
+      <div class="flex items-center p-0.5 bg-zinc-800 rounded-xl text-xs font-semibold">
+        <button id="navTrainBtn" onclick="switchView('practice')" class="px-3.5 py-1.5 rounded-[10px] transition-all bg-zinc-700 text-indigo-300 shadow-sm">
+          Тест
+        </button>
+        <button id="navDeckBtn" onclick="switchView('deck')" class="px-3.5 py-1.5 rounded-[10px] transition-all text-zinc-400 hover:text-white">
+          Термины (<span id="deckWordCount">0</span>)
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Content Body -->
+  <main class="flex-1 max-w-2xl w-full mx-auto px-4 py-4 sm:py-6 flex flex-col justify-center">
+
+    <!-- VIEW 1: PRACTICE MODE -->
+    <section id="viewPractice" class="w-full flex flex-col gap-4 pop-anim">
+      
+      <!-- Top Bar: Direction Selector & Audio Stats -->
+      <div class="flex items-center justify-between text-xs text-zinc-400">
+        <button onclick="cycleTestMode()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 font-medium transition-all">
+          <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+          <span id="directionLabel">Режим: Русский → Латынь</span>
+        </button>
+
+        <div class="flex items-center gap-3 font-semibold text-xs">
+          <span class="text-emerald-400" id="statCorrect">✓ 0</span>
+          <span class="text-rose-400" id="statMistakes">✗ 0</span>
+        </div>
+      </div>
+
+      <!-- Segmented Progress Bar -->
+      <div class="w-full h-1.5 bg-zinc-800/80 rounded-full overflow-hidden">
+        <div id="practiceProgressBar" class="h-full bg-indigo-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+      </div>
+
+      <!-- Card Container -->
+      <div id="quizCard" class="bg-zinc-900 border border-zinc-800 rounded-[28px] p-6 sm:p-10 shadow-2xl flex flex-col items-center text-center transition-all duration-200 relative">
+        
+        <div class="text-[11px] uppercase tracking-wider font-semibold text-zinc-400 mb-2" id="promptTypeLabel">
+          Медицинский термин
+        </div>
+
+        <h2 id="promptText" class="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-50 min-h-[4.5rem] flex items-center justify-center break-words max-w-full">
+          Загрузка...
+        </h2>
+
+        <!-- Spell-check Form -->
+        <form id="quizForm" onsubmit="handleFormSubmit(event)" class="w-full mt-6 flex flex-col gap-3">
+          <div class="relative w-full">
+            <input 
+              type="text" 
+              id="answerInput" 
+              autocomplete="off" 
+              autocapitalize="none"
+              autocorrect="off"
+              spellcheck="false"
+              placeholder="Введите точный латинский термин..." 
+              class="w-full px-4 py-4 rounded-2xl bg-zinc-800/60 border-2 border-zinc-700 focus:border-indigo-500 focus:outline-none transition-all text-center text-lg font-medium tracking-wide placeholder:text-zinc-500 text-white"
+            />
+          </div>
+
+          <!-- Error Review Box -->
+          <div id="mistakeFeedback" class="hidden text-left p-4 rounded-2xl border border-rose-900/40 bg-rose-950/20 text-sm pop-anim">
+            <div class="flex items-center justify-between text-xs font-semibold text-rose-400 uppercase tracking-wider mb-1">
+              <span>Опечатка / Неверно</span>
+            </div>
+            <div class="text-zinc-400 text-xs">Правильное написание:</div>
+            <div id="expectedWordDisplay" class="font-mono text-base font-bold text-zinc-100 tracking-wider mt-0.5 select-text"></div>
+          </div>
+
+          <!-- Action button -->
+          <button 
+            type="submit" 
+            id="submitActionBtn"
+            class="w-full py-4 px-6 rounded-2xl font-semibold bg-indigo-600 hover:bg-indigo-500 active:scale-[0.99] text-white shadow-lg shadow-indigo-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <span id="btnText">Проверить</span>
+            <span class="text-[11px] px-2 py-0.5 rounded-md bg-indigo-700/60 font-mono text-indigo-100 hidden sm:inline-block">Enter ↵</span>
+          </button>
+        </form>
+
+      </div>
+
+      <div class="text-center text-xs text-zinc-500">
+        <span id="counterText">0 из 0</span> • Проверка точная, без учёта регистра
+      </div>
+
+    </section>
+
+    <!-- VIEW 2: SUMMARY & RESULTS -->
+    <section id="viewResults" class="hidden w-full flex flex-col items-center gap-4 pop-anim">
+      <div class="bg-zinc-900 border border-zinc-800 rounded-[28px] p-6 sm:p-8 shadow-2xl w-full flex flex-col items-center text-center">
+        
+        <div class="w-14 h-14 rounded-2xl bg-indigo-950/40 text-indigo-400 flex items-center justify-center text-2xl mb-3 shadow-inner">
+          ✦
+        </div>
+        
+        <h2 class="text-2xl font-bold tracking-tight">Сессия завершена</h2>
+        <p class="text-xs text-zinc-400 mt-1 mb-6">Результаты проверки латинских терминов:</p>
+
+        <div class="grid grid-cols-2 gap-3 w-full max-w-xs mb-6">
+          <div class="p-3.5 rounded-2xl bg-zinc-800/50 border border-zinc-800">
+            <div class="text-2xl font-bold text-emerald-400" id="resCorrectCount">0</div>
+            <div class="text-[11px] text-zinc-400 uppercase font-semibold">Верно</div>
+          </div>
+          <div class="p-3.5 rounded-2xl bg-zinc-800/50 border border-zinc-800">
+            <div class="text-2xl font-bold text-rose-400" id="resMistakesCount">0</div>
+            <div class="text-[11px] text-zinc-400 uppercase font-semibold">Ошибки</div>
+          </div>
+        </div>
+
+        <div id="missedListContainer" class="w-full text-left mb-6 hidden">
+          <div class="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2 px-1">Слова с ошибками:</div>
+          <div id="missedCardsList" class="max-h-48 overflow-y-auto space-y-1.5 pr-1"></div>
+        </div>
+
+        <div class="flex flex-col gap-2 w-full max-w-xs">
+          <button id="retryOnlyMistakesBtn" onclick="restartQuiz(true)" class="hidden py-3.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-2xl transition-all shadow-md">
+            Повторить только ошибки
+          </button>
+          <button onclick="restartQuiz(false)" class="py-3.5 px-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-100 text-sm font-semibold rounded-2xl transition-all">
+            Пройти колоду заново
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- VIEW 3: DECK EDITOR & TERMS MANAGER -->
+    <section id="viewDeck" class="hidden w-full flex flex-col gap-4 pop-anim">
+      
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold tracking-tight" id="deckTitleDisplay">Термины</h2>
+          <p class="text-xs text-zinc-500">Словарные формы и перевод</p>
+        </div>
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <button onclick="openModal('modalScan')" class="px-2.5 py-2 text-xs font-medium rounded-xl bg-indigo-950/40 hover:bg-indigo-900/60 text-indigo-300 transition-colors flex items-center gap-1 border border-indigo-800/40">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <span>Распознать фото</span>
+          </button>
+          <button onclick="openModal('modalBulk')" class="px-2.5 py-2 text-xs font-medium rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-colors">
+            + Список
+          </button>
+          <button onclick="openModal('modalSingle')" class="px-3 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition-colors">
+            + Слово
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Add Inline Card with Live Suggestions -->
+      <div class="relative">
+        <form onsubmit="handleQuickAdd(event)" class="bg-zinc-900 p-3 rounded-2xl border border-zinc-800 flex flex-col sm:flex-row gap-2">
+          <div class="flex-1 relative">
+            <input 
+              id="quickTerm" 
+              type="text" 
+              placeholder="Латынь (напр: sphinc, canalis, m. pect...)" 
+              required 
+              autocomplete="off"
+              oninput="handleLatinInput(this.value, 'quickSuggestBox', 'quickTerm', 'quickDef')"
+              class="w-full px-3.5 py-2.5 text-xs bg-zinc-800/60 border border-zinc-700 rounded-xl focus:outline-none focus:border-indigo-500 font-medium text-white"
+            >
+            <div id="quickSuggestBox" class="hidden absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl z-50 p-1 space-y-0.5 pop-anim"></div>
+          </div>
+          <input id="quickDef" type="text" placeholder="Перевод на русский" required class="flex-1 px-3.5 py-2.5 text-xs bg-zinc-800/60 border border-zinc-700 rounded-xl focus:outline-none focus:border-indigo-500 text-white">
+          <button type="submit" class="px-4 py-2.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl whitespace-nowrap">
+            Добавить
+          </button>
+        </form>
+      </div>
+
+      <!-- Terms List Container -->
+      <div id="termsList" class="space-y-2 max-h-[52vh] overflow-y-auto pr-1 no-scrollbar"></div>
+
+      <!-- Deck Footer Controls -->
+      <div class="flex items-center justify-between pt-2 border-t border-zinc-800 text-xs">
+        <button onclick="exportCurrentDeck()" class="text-zinc-500 hover:text-indigo-400 transition-colors">
+          Экспорт колоды (JSON)
+        </button>
+        <button onclick="deleteCurrentDeck()" class="text-rose-400 hover:text-rose-300 transition-colors">
+          Удалить эту колоду
+        </button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- MODALS -->
+
+  <!-- Modal: Single Word with Smart Latin Lexicon Autocomplete -->
+  <div id="modalSingle" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 w-full max-w-md shadow-2xl pop-anim">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <h3 class="font-bold text-base">Добавить медицинский термин</h3>
+          <p class="text-[11px] text-zinc-400">Начните ввод — словарная форма и перевод предложатся сами</p>
+        </div>
+        <button onclick="closeModal('modalSingle')" class="text-zinc-400 hover:text-white text-xl leading-none">&times;</button>
+      </div>
+      
+      <!-- Quick Insert Snippets for Medical Abbreviations & Grammatical Endings -->
+      <div class="mb-3">
+        <div class="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">Быстрая вставка</div>
+        <div class="flex flex-wrap gap-1">
+          <button type="button" onclick="insertSnippet('m. ')" class="px-2 py-1 bg-zinc-800 hover:bg-indigo-950/50 text-indigo-400 rounded-lg text-xs font-mono">m.</button>
+          <button type="button" onclick="insertSnippet('a. ')" class="px-2 py-1 bg-zinc-800 hover:bg-indigo-950/50 text-indigo-400 rounded-lg text-xs font-mono">a.</button>
+          <button type="button" onclick="insertSnippet('v. ')" class="px-2 py-1 bg-zinc-800 hover:bg-indigo-950/50 text-indigo-400 rounded-lg text-xs font-mono">v.</button>
+          <button type="button" onclick="insertSnippet('n. ')" class="px-2 py-1 bg-zinc-800 hover:bg-indigo-950/50 text-indigo-400 rounded-lg text-xs font-mono">n.</button>
+          <button type="button" onclick="insertSnippet('lig. ')" class="px-2 py-1 bg-zinc-800 hover:bg-indigo-950/50 text-indigo-400 rounded-lg text-xs font-mono">lig.</button>
+          <button type="button" onclick="insertSnippet('art. ')" class="px-2 py-1 bg-zinc-800 hover:bg-indigo-950/50 text-indigo-400 rounded-lg text-xs font-mono">art.</button>
+          <button type="button" onclick="insertSnippet(', ae f')" class="px-1.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-mono">, ae f</button>
+          <button type="button" onclick="insertSnippet(', i m')" class="px-1.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-mono">, i m</button>
+          <button type="button" onclick="insertSnippet(', is m')" class="px-1.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-mono">, is m</button>
+          <button type="button" onclick="insertSnippet(', is f')" class="px-1.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-mono">, is f</button>
+          <button type="button" onclick="insertSnippet(', eris m')" class="px-1.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-mono">, eris m</button>
+          <button type="button" onclick="insertSnippet(', inis n')" class="px-1.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-mono">, inis n</button>
+          <button type="button" onclick="insertSnippet(', us m')" class="px-1.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-mono">, us m</button>
+          <button type="button" onclick="insertSnippet(', ei f')" class="px-1.5 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs font-mono">, ei f</button>
+        </div>
+      </div>
+
+      <form onsubmit="handleModalAdd(event)" class="space-y-3 relative">
+        <div class="relative">
+          <label class="block text-[11px] font-semibold text-zinc-400 mb-1">Латинский термин и словарная форма</label>
+          <input 
+            id="modalTerm" 
+            type="text" 
+            required 
+            placeholder="Напр. sphincter, eris m или sphinc" 
+            autocomplete="off"
+            oninput="handleLatinInput(this.value, 'latinSuggestBox', 'modalTerm', 'modalDef')"
+            class="w-full px-3.5 py-2.5 text-xs bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:border-indigo-500 font-medium text-white"
+          >
+          <div id="latinSuggestBox" class="hidden absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl z-50 p-1 space-y-0.5 pop-anim"></div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-semibold text-zinc-400 mb-1">Перевод на русский (значение)</label>
+          <input id="modalDef" type="text" required placeholder="сжиматель, сфинктер" class="w-full px-3.5 py-2.5 text-xs bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:border-indigo-500 text-white">
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeModal('modalSingle')" class="px-3.5 py-2 text-xs font-medium text-zinc-400 hover:text-white">Отмена</button>
+          <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 rounded-xl shadow-md hover:bg-indigo-500">Сохранить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Bulletproof Smart OCR Scanner & Live Text -->
+  <div id="modalScan" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-5 sm:p-6 w-full max-w-xl shadow-2xl pop-anim max-h-[92vh] flex flex-col">
+      <div class="flex items-center justify-between mb-2">
+        <div>
+          <h3 class="font-bold text-base flex items-center gap-1.5 text-white">
+            <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            Распознать термины по фото
+          </h3>
+          <p class="text-[11px] text-zinc-400">Сделайте снимок страницы или загрузите изображение словаря</p>
+        </div>
+        <button onclick="closeModal('modalScan')" class="text-zinc-400 hover:text-white text-xl leading-none">&times;</button>
+      </div>
+
+      <!-- Action row: File selection & Paste -->
+      <div class="grid grid-cols-2 gap-2 my-2">
+        <label class="flex items-center justify-center gap-2 py-2.5 px-3 bg-indigo-950/40 hover:bg-indigo-900/60 text-indigo-300 font-semibold text-xs rounded-xl cursor-pointer transition-colors border border-indigo-800/40">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/></svg>
+          <span id="scanFileLabel">Снимок / Фото</span>
+          <input type="file" id="ocrPhotoPicker" accept="image/*" class="hidden" onchange="handleImageForSmartOCR(event)">
+        </label>
+
+        <button type="button" onclick="pasteFromClipboard()" class="flex items-center justify-center gap-2 py-2.5 px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-xs rounded-xl transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          <span>Вставить из буфера</span>
+        </button>
+      </div>
+
+      <!-- OCR Progress Banner -->
+      <div id="ocrStatusBar" class="hidden my-2 p-3 bg-zinc-800/80 rounded-xl border border-zinc-700 pop-anim">
+        <div class="flex items-center justify-between text-xs mb-1.5">
+          <span id="ocrStatusText" class="font-medium text-indigo-300">Обработка изображения...</span>
+          <span id="ocrPercentage" class="font-mono text-zinc-400">0%</span>
+        </div>
+        <div class="w-full h-1.5 bg-zinc-700 rounded-full overflow-hidden">
+          <div id="ocrProgressBar" class="h-full bg-indigo-500 rounded-full transition-all duration-200" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Live Preview & Fallback helper -->
+      <div id="scanImageHelper" class="hidden mb-2 relative rounded-2xl overflow-hidden border border-zinc-700 bg-black max-h-36 flex items-center justify-center">
+        <img id="scanPreviewImg" class="max-h-36 w-auto object-contain select-all" alt="Снимок страницы">
+        <div class="absolute bottom-1 left-2 right-2 bg-black/85 backdrop-blur text-white text-[10px] p-1.5 rounded-lg text-center">
+          💡 Нажмите и удерживайте текст на фото выше, чтобы скопировать на iPhone/iPad, если фото смазано.
+        </div>
+      </div>
+
+      <!-- Raw text / OCR result editor -->
+      <div class="flex-1 flex flex-col min-h-[120px] mb-2">
+        <label class="text-[11px] font-semibold text-zinc-400 mb-1 flex items-center justify-between">
+          <span>Распознанный текст (можно редактировать)</span>
+          <button type="button" onclick="clearOcrText()" class="text-zinc-500 hover:text-zinc-300 text-[10px]">Очистить</button>
+        </label>
+        <textarea 
+          id="scannerRawInput" 
+          rows="4" 
+          autocorrect="off" 
+          autocapitalize="none" 
+          spellcheck="false"
+          placeholder="Текст с фото появится здесь или вставьте сюда строки вида:&#10;m. sphincter, eris m — мышца-сжиматель&#10;canalis, is m — канал&#10;foramen, inis n — отверстие" 
+          class="w-full flex-1 p-3 text-xs font-mono bg-zinc-800/70 border border-zinc-700 rounded-xl focus:outline-none focus:border-indigo-500 text-white leading-relaxed resize-none"
+          oninput="debounceParseScannedText()"
+        ></textarea>
+      </div>
+
+      <!-- Extracted Terms Preview & Editor -->
+      <div id="parsedResultsContainer" class="flex-1 overflow-y-auto space-y-1.5 hidden pr-1 max-h-36 border-t border-zinc-800 pt-2 no-scrollbar">
+        <div class="flex items-center justify-between text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">
+          <span>Готово к импорту (<span id="parsedCountBadge">0</span>)</span>
+          <button type="button" onclick="addParsedBlankRow()" class="text-indigo-400 lowercase hover:underline">+ строка</button>
+        </div>
+        <div id="parsedRowsList" class="space-y-1.5"></div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="flex justify-between items-center gap-2 pt-3 border-t border-zinc-800 mt-auto">
+        <button type="button" onclick="parseScannedTextNow()" class="px-3 py-2 text-xs font-semibold text-zinc-300 bg-zinc-800 rounded-xl hover:bg-zinc-700">
+          Разобрать в карточки
+        </button>
+        <div class="flex gap-2">
+          <button type="button" onclick="closeModal('modalScan')" class="px-3.5 py-2 text-xs font-medium text-zinc-400 hover:text-white">Закрыть</button>
+          <button id="parsedImportBtn" type="button" onclick="saveParsedResultsToDeck()" disabled class="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 disabled:opacity-40 rounded-xl shadow-md hover:bg-indigo-500">
+            Добавить в колоду
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Bulk Paste Import -->
+  <div id="modalBulk" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 w-full max-w-lg shadow-2xl pop-anim">
+      <div class="flex items-center justify-between mb-1">
+        <h3 class="font-bold text-base text-white">Быстрый импорт списком</h3>
+        <button onclick="closeModal('modalBulk')" class="text-zinc-400 hover:text-white text-xl leading-none">&times;</button>
+      </div>
+      <p class="text-xs text-zinc-400 mb-3">Вставьте строки в формате <code>термин - перевод</code>, <code>термин — перевод</code> или из таблиц Excel.</p>
+      <form onsubmit="handleBulkImportSubmit(event)" class="space-y-3">
+        <textarea id="bulkInputArea" rows="7" placeholder="m. sphincter, eris m — мышца-сжиматель&#10;foramen, inis n — отверстие&#10;os, ossis n — кость" class="w-full p-3 font-mono text-xs rounded-xl bg-zinc-800/80 border border-zinc-700 text-white focus:outline-none focus:border-indigo-500"></textarea>
+        <div class="flex justify-end gap-2 pt-1">
+          <button type="button" onclick="closeModal('modalBulk')" class="px-3.5 py-2 text-xs font-medium text-zinc-400">Отмена</button>
+          <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-500">Импортировать</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: New Deck -->
+  <div id="modalNewDeck" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 w-full max-w-xs shadow-2xl pop-anim">
+      <h3 class="font-bold text-base mb-3 text-white">Название новой колоды</h3>
+      <form onsubmit="handleCreateDeck(event)" class="space-y-3">
+        <input id="newDeckTitleInput" type="text" required placeholder="Например: Остеология или Мышцы" class="w-full px-3.5 py-2.5 text-xs bg-zinc-800 border border-zinc-700 rounded-xl focus:outline-none focus:border-indigo-500 text-white">
+        <div class="flex justify-end gap-2 pt-1">
+          <button type="button" onclick="closeModal('modalNewDeck')" class="px-3 py-2 text-xs font-medium text-zinc-400">Отмена</button>
+          <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-500">Создать</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Audio Synthesizer (Web Audio API) -->
+  <script>
+    const Sound = {
+      ctx: null,
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) this.ctx = new AudioContext();
+        }
+      },
+      beep(freq, type, duration, delay = 0, gainLevel = 0.08) {
+        try {
+          this.init();
+          if (!this.ctx) return;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime + delay);
+          gain.gain.setValueAtTime(gainLevel, this.ctx.currentTime + delay);
+          gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + delay + duration);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(this.ctx.currentTime + delay);
+          osc.stop(this.ctx.currentTime + delay + duration);
+        } catch (e) {}
+      },
+      success() {
+        this.beep(523.25, 'sine', 0.1, 0, 0.07); // C5
+        this.beep(659.25, 'sine', 0.16, 0.06, 0.07); // E5
+      },
+      error() {
+        this.beep(220, 'triangle', 0.12, 0, 0.1);
+        this.beep(165, 'triangle', 0.2, 0.07, 0.1);
+      }
+    };
+  </script>
+
+  <!-- Anatomical Latin Lexical Database & Application Logic -->
+  <script>
+    // Rich Latin anatomical and clinical dictionary (Nomina Anatomica)
+    const LATIN_LEXICON = [
+      // 1 Declension (feminine)
+      { nom: "ala", gen: "alae", form: "ala, ae f", def: "крыло" },
+      { nom: "arteria", gen: "arteriae", form: "arteria, ae f", def: "артерия", abbr: "a." },
+      { nom: "bursa", gen: "bursae", form: "bursa, ae f", def: "сумка" },
+      { nom: "clavicula", gen: "claviculae", form: "clavicula, ae f", def: "ключица" },
+      { nom: "costa", gen: "costae", form: "costa, ae f", def: "ребро" },
+      { nom: "crista", gen: "cristae", form: "crista, ae f", def: "гребень" },
+      { nom: "fascia", gen: "fasciae", form: "fascia, ae f", def: "фасция" },
+      { nom: "fossa", gen: "fossae", form: "fossa, ae f", def: "ямка" },
+      { nom: "glandula", gen: "glandulae", form: "glandula, ae f", def: "железа", abbr: "gl." },
+      { nom: "incisura", gen: "incisurae", form: "incisura, ae f", def: "вырезка" },
+      { nom: "lamina", gen: "laminae", form: "lamina, ae f", def: "пластинка" },
+      { nom: "linea", gen: "lineae", form: "linea, ae f", def: "линия" },
+      { nom: "lingua", gen: "linguae", form: "lingua, ae f", def: "язык" },
+      { nom: "mandibula", gen: "mandibulae", form: "mandibula, ae f", def: "нижняя челюсть" },
+      { nom: "maxilla", gen: "maxillae", form: "maxilla, ae f", def: "верхняя челюсть" },
+      { nom: "scapula", gen: "scapulae", form: "scapula, ae f", def: "лопатка" },
+      { nom: "spina", gen: "spinae", form: "spina, ae f", def: "ость" },
+      { nom: "sutura", gen: "suturae", form: "sutura, ae f", def: "шов" },
+      { nom: "tuba", gen: "tubae", form: "tuba, ae f", def: "труба" },
+      { nom: "vena", gen: "venae", form: "vena, ae f", def: "вена", abbr: "v." },
+      { nom: "vertebra", gen: "vertebrae", form: "vertebra, ae f", def: "позвонок" },
+
+      // 2 Declension (masculine / neuter)
+      { nom: "angulus", gen: "anguli", form: "angulus, i m", def: "угол" },
+      { nom: "brachium", gen: "brachii", form: "brachium, i n", def: "плечо" },
+      { nom: "bulbus", gen: "bulbi", form: "bulbus, i m", def: "луковица" },
+      { nom: "cavum", gen: "cavi", form: "cavum, i n", def: "полость" },
+      { nom: "cerebrum", gen: "cerebri", form: "cerebrum, i n", def: "большой мозг" },
+      { nom: "collum", gen: "colli", form: "collum, i n", def: "шея, шейка" },
+      { nom: "cranium", gen: "cranii", form: "cranium, i n", def: "череп" },
+      { nom: "dorsum", gen: "dorsi", form: "dorsum, i n", def: "спина, спинка" },
+      { nom: "ligamentum", gen: "ligamenti", form: "ligamentum, i n", def: "связка", abbr: "lig." },
+      { nom: "musculus", gen: "musculi", form: "musculus, i m", def: "мышца", abbr: "m." },
+      { nom: "nasus", gen: "nasi", form: "nasus, i m", def: "нос" },
+      { nom: "nervus", gen: "nervi", form: "nervus, i m", def: "нерв", abbr: "n." },
+      { nom: "nodus", gen: "nodi", form: "nodus, i m", def: "узел" },
+      { nom: "ramus", gen: "rami", form: "ramus, i m", def: "ветвь", abbr: "r." },
+      { nom: "septum", gen: "septi", form: "septum, i n", def: "перегородка" },
+      { nom: "skeleton", gen: "skeleti", form: "skeleton, i n", def: "скелет" },
+      { nom: "sulcus", gen: "sulci", form: "sulcus, i m", def: "борозда" },
+      { nom: "tuberculum", gen: "tuberculi", form: "tuberculum, i n", def: "бугорок" },
+      { nom: "truncus", gen: "trunci", form: "truncus, i m", def: "ствол" },
+
+      // 3 Declension
+      { nom: "sphincter", gen: "sphincteris", form: "sphincter, eris m", def: "сжиматель, сфинктер" },
+      { nom: "m. sphincter", gen: "sphincteris", form: "m. sphincter, eris m", def: "мышца-сжиматель, сфинктер" },
+      { nom: "apex", gen: "apicis", form: "apex, icis m", def: "верхушка" },
+      { nom: "articulatio", gen: "articulationis", form: "articulatio, onis f", def: "сустав", abbr: "art." },
+      { nom: "auris", gen: "auris", form: "auris, is f", def: "ухо" },
+      { nom: "canalis", gen: "canalis", form: "canalis, is m", def: "канал" },
+      { nom: "caput", gen: "capitis", form: "caput, itis n", def: "голова, головка" },
+      { nom: "cartilago", gen: "cartilaginis", form: "cartilago, inis f", def: "хрящ" },
+      { nom: "corpus", gen: "corporis", form: "corpus, oris n", def: "тело" },
+      { nom: "cortex", gen: "corticis", form: "cortex, icis m", def: "кора, корковое вещество" },
+      { nom: "dens", gen: "dentis", form: "dens, dentis m", def: "зуб" },
+      { nom: "foramen", gen: "foraminis", form: "foramen, inis n", def: "отверстие" },
+      { nom: "margo", gen: "marginis", form: "margo, inis m", def: "край" },
+      { nom: "os", gen: "ossis", form: "os, ossis n", def: "кость" },
+      { nom: "os", gen: "oris", form: "os, oris n", def: "рот" },
+      { nom: "pars", gen: "partis", form: "pars, partis f", def: "часть" },
+      { nom: "pectus", gen: "pectoris", form: "pectus, oris n", def: "грудь" },
+      { nom: "pes", gen: "pedis", form: "pes, pedis m", def: "нога, стопа" },
+      { nom: "radix", gen: "radicis", form: "radix, icis f", def: "корень" },
+      { nom: "regio", gen: "regionis", form: "regio, onis f", def: "область" },
+      { nom: "tendo", gen: "tendinis", form: "tendo, inis m", def: "сухожилие" },
+      { nom: "thorax", gen: "thoracis", form: "thorax, acis m", def: "грудная клетка" },
+      { nom: "tuber", gen: "tuberis", form: "tuber, eris n", def: "бугор" },
+      { nom: "vas", gen: "vasis", form: "vas, vasis n", def: "сосуд" },
+      { nom: "vomer", gen: "vomeris", form: "vomer, eris m", def: "сошник" },
+
+      // 4 Declension
+      { nom: "arcus", gen: "arcus", form: "arcus, us m", def: "дуга" },
+      { nom: "cornu", gen: "cornus", form: "cornu, us n", def: "рог" },
+      { nom: "ductus", gen: "ductus", form: "ductus, us m", def: "проток" },
+      { nom: "hiatus", gen: "hiatus", form: "hiatus, us m", def: "расщелина" },
+      { nom: "meatus", gen: "meatus", form: "meatus, us m", def: "проход, ход" },
+      { nom: "plexus", gen: "plexus", form: "plexus, us m", def: "сплетение", abbr: "pl." },
+      { nom: "processus", gen: "processus", form: "processus, us m", def: "отросток" },
+      { nom: "sinus", gen: "sinus", form: "sinus, us m", def: "пазуха, синус" },
+
+      // 5 Declension
+      { nom: "facies", gen: "faciei", form: "facies, ei f", def: "поверхность, лицо" },
+      { nom: "superficies", gen: "superficiei", form: "superficies, ei f", def: "поверхность" },
+
+      // Adjectives
+      { nom: "magnus", gen: "magna, magnum", form: "magnus, a, um", def: "большой" },
+      { nom: "major", gen: "majus", form: "major, jus", def: "больший" },
+      { nom: "minor", gen: "minus", form: "minor, us", def: "малый, меньший" },
+      { nom: "longus", gen: "longa, longum", form: "longus, a, um", def: "длинный" },
+      { nom: "brevis", gen: "breve", form: "brevis, e", def: "короткий" },
+      { nom: "anterior", gen: "anterius", form: "anterior, ius", def: "передний" },
+      { nom: "posterior", gen: "posterius", form: "posterior, ius", def: "задний" },
+      { nom: "superior", gen: "superius", form: "superior, ius", def: "верхний" },
+      { nom: "inferior", gen: "inferius", form: "inferior, ius", def: "нижний" }
+    ];
+
+    // Autocomplete handler
+    function handleLatinInput(query, boxId, termTargetId, defTargetId) {
+      const box = document.getElementById(boxId);
+      if (!box) return;
+
+      const trimmed = query.trim().toLowerCase();
+      if (trimmed.length < 2) {
+        box.classList.add('hidden');
+        box.innerHTML = '';
+        return;
+      }
+
+      const matches = LATIN_LEXICON.filter(item => {
+        return item.nom.toLowerCase().startsWith(trimmed) || 
+               item.form.toLowerCase().includes(trimmed) ||
+               (item.abbr && item.abbr.toLowerCase().startsWith(trimmed)) ||
+               item.def.toLowerCase().includes(trimmed);
+      }).slice(0, 6);
+
+      if (matches.length === 0) {
+        box.classList.add('hidden');
+        box.innerHTML = '';
+        return;
+      }
+
+      box.innerHTML = matches.map(m => `
+        <button 
+          type="button" 
+          onclick="applyLatinSuggestion('${m.form.replace(/'/g, "\\'")}', '${m.def.replace(/'/g, "\\'")}', '${boxId}', '${termTargetId}', '${defTargetId}')" 
+          class="w-full text-left p-2 hover:bg-zinc-800 rounded-lg flex items-center justify-between text-xs transition-colors"
+        >
+          <div>
+            <span class="font-bold text-indigo-400 font-mono">${m.form}</span>
+            <span class="text-zinc-500 text-[10px] ml-1.5">• ${m.gen || ''}</span>
+          </div>
+          <span class="text-zinc-400 text-[11px] truncate max-w-[130px] ml-2">${m.def}</span>
+        </button>
+      `).join('');
+
+      box.classList.remove('hidden');
+    }
+
+    function applyLatinSuggestion(termForm, definition, boxId, termInputId, defInputId) {
+      const termEl = document.getElementById(termInputId);
+      const defEl = document.getElementById(defInputId);
+      const box = document.getElementById(boxId);
+
+      if (termEl) termEl.value = termForm;
+      if (defEl && (!defEl.value || defEl.value.trim() === '')) {
+        defEl.value = definition;
+      }
+      if (box) {
+        box.classList.add('hidden');
+        box.innerHTML = '';
+      }
+      if (defEl) defEl.focus();
+    }
+
+    function insertSnippet(text) {
+      const input = document.getElementById('modalTerm');
+      if (!input) return;
+      const start = input.selectionStart || input.value.length;
+      const end = input.selectionEnd || input.value.length;
+      input.value = input.value.substring(0, start) + text + input.value.substring(end);
+      input.focus();
+      input.setSelectionRange(start + text.length, start + text.length);
+      handleLatinInput(input.value, 'latinSuggestBox', 'modalTerm', 'modalDef');
+    }
+
+    // BULLETPROOF IMAGE OCR ARCHITECTURE
+    let parsedItemsList = [];
+    let parseDebounceTimer = null;
+
+    // Helper: Canvas Preprocessing & Contrast Optimization
+    function preprocessImageToCanvas(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = reject;
+        reader.onload = function(e) {
+          const img = new Image();
+          img.onerror = reject;
+          img.onload = function() {
+            // Resize to maximum 1600px dimension to prevent iOS Safari memory termination
+            const maxDim = 1600;
+            let w = img.width;
+            let h = img.height;
+            if (w > maxDim || h > maxDim) {
+              if (w > h) {
+                h = Math.round((h * maxDim) / w);
+                w = maxDim;
+              } else {
+                w = Math.round((w * maxDim) / h);
+                h = maxDim;
+              }
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+
+            // Binarization & contrast enhancement for crisp printed medical text
+            const imgData = ctx.getImageData(0, 0, w, h);
+            const d = imgData.data;
+            for (let i = 0; i < d.length; i += 4) {
+              const gray = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+              // High contrast thresholding
+              const val = gray > 140 ? 255 : (gray < 85 ? 0 : gray);
+              d[i] = val;
+              d[i+1] = val;
+              d[i+2] = val;
+            }
+            ctx.putImageData(imgData, 0, 0);
+            resolve({ canvas, dataUrl: e.target.result });
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function handleImageForSmartOCR(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      const statusBar = document.getElementById('ocrStatusBar');
+      const statusText = document.getElementById('ocrStatusText');
+      const percentage = document.getElementById('ocrPercentage');
+      const progressBar = document.getElementById('ocrProgressBar');
+      const helper = document.getElementById('scanImageHelper');
+      const previewImg = document.getElementById('scanPreviewImg');
+
+      statusBar.classList.remove('hidden');
+      statusText.textContent = "Оптимизация изображения...";
+      percentage.textContent = "15%";
+      progressBar.style.width = "15%";
+
+      try {
+        const { canvas, dataUrl } = await preprocessImageToCanvas(file);
+        previewImg.src = dataUrl;
+        helper.classList.remove('hidden');
+
+        percentage.textContent = "30%";
+        progressBar.style.width = "30%";
+        statusText.textContent = "Поиск текста...";
+
+        // 1. Try Native System OCR (Shape Detection / TextDetector API)
+        if ('TextDetector' in window) {
+          try {
+            statusText.textContent = "Системное распознавание...";
+            const detector = new window.TextDetector();
+            const texts = await detector.detect(canvas);
+            if (texts && texts.length > 0) {
+              const fullText = texts.map(t => t.rawValue).join('\n');
+              document.getElementById('scannerRawInput').value = fullText;
+              parseScannedTextNow();
+              percentage.textContent = "100%";
+              progressBar.style.width = "100%";
+              statusText.textContent = "Успешно распознано!";
+              setTimeout(() => statusBar.classList.add('hidden'), 1200);
+              return;
+            }
+          } catch (e) {
+            console.log("Native TextDetector fallback:", e);
+          }
+        }
+
+        // 2. Load Tesseract client with timeout race (never hang at 10%)
+        statusText.textContent = "Распознавание строк...";
+        percentage.textContent = "50%";
+        progressBar.style.width = "50%";
+
+        const ocrPromise = (async () => {
+          if (!window.Tesseract) {
+            await loadScriptPromise('https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js')
+              .catch(() => loadScriptPromise('https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js'));
+          }
+          if (window.Tesseract) {
+            const res = await window.Tesseract.recognize(canvas, 'rus+lat', {
+              logger: m => {
+                if (m.status === 'recognizing text' && m.progress) {
+                  const pct = Math.round(50 + m.progress * 48);
+                  percentage.textContent = `${pct}%`;
+                  progressBar.style.width = `${pct}%`;
+                }
+              }
+            });
+            return res?.data?.text || '';
+          }
+          return '';
+        })();
+
+        // 8-second timeout guard: if network stalls, provide smooth fallback
+        const timeoutPromise = new Promise(resolve => setTimeout(() => resolve('TIMEOUT'), 8000));
+        const result = await Promise.race([ocrPromise, timeoutPromise]);
+
+        if (result && result !== 'TIMEOUT' && result.trim().length > 3) {
+          document.getElementById('scannerRawInput').value = result;
+          parseScannedTextNow();
+          percentage.textContent = "100%";
+          progressBar.style.width = "100%";
+          statusText.textContent = "Готово!";
+          setTimeout(() => statusBar.classList.add('hidden'), 1200);
+        } else {
+          // Graceful fallback: Never show error crash. Instruct user with live copy.
+          statusBar.classList.remove('hidden');
+          statusText.textContent = "Фото загружено. Скопируйте текст с изображения выше или вставьте.";
+          percentage.textContent = "Готово";
+          progressBar.style.width = "100%";
+          document.getElementById('scannerRawInput').focus();
+        }
+
+      } catch (err) {
+        console.error(err);
+        statusText.textContent = "Фото загружено. Выделите нужный текст на картинке выше.";
+        percentage.textContent = "100%";
+        progressBar.style.width = "100%";
+      }
+    }
+
+    function loadScriptPromise(src) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+
+    async function pasteFromClipboard() {
+      try {
+        let text = '';
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          text = await navigator.clipboard.readText();
+        }
+        if (!text) {
+          text = prompt("Вставьте скопированный текст:") || '';
+        }
+        if (text) {
+          const rawInput = document.getElementById('scannerRawInput');
+          rawInput.value = (rawInput.value ? rawInput.value + '\n' : '') + text;
+          parseScannedTextNow();
+        }
+      } catch (e) {
+        const text = prompt("Вставьте скопированный текст:") || '';
+        if (text) {
+          document.getElementById('scannerRawInput').value = text;
+          parseScannedTextNow();
+        }
+      }
+    }
+
+    function clearOcrText() {
+      document.getElementById('scannerRawInput').value = '';
+      parsedItemsList = [];
+      renderParsedRows();
+    }
+
+    function debounceParseScannedText() {
+      clearTimeout(parseDebounceTimer);
+      parseDebounceTimer = setTimeout(parseScannedTextNow, 350);
+    }
+
+    // Intelligent Anatomical Line Splitter
+    function parseScannedTextNow() {
+      const rawText = document.getElementById('scannerRawInput').value;
+      if (!rawText.trim()) {
+        parsedItemsList = [];
+        renderParsedRows();
+        return;
+      }
+
+      parsedItemsList = [];
+      const lines = rawText.split('\n');
+      const delimiterRegex = /\s*[\u2014\u2013\-\:\—\|–]\s*/;
+
+      for (let rawLine of lines) {
+        const line = rawLine.trim();
+        if (!line || line.length < 3) continue;
+
+        let term = '';
+        let def = '';
+
+        if (delimiterRegex.test(line)) {
+          const parts = line.split(delimiterRegex);
+          term = parts[0].trim();
+          def = parts.slice(1).join(' - ').trim();
+        } else {
+          // If no hyphen, separate latin letters from cyrillic
+          const match = line.match(/^([a-zA-Z\.\,\s]+)\s+([а-яА-ЯёЁ\s\,\;\(\)]+)$/);
+          if (match) {
+            term = match[1].trim();
+            def = match[2].trim();
+          } else {
+            term = line;
+            def = '';
+          }
+        }
+
+        if (term) {
+          parsedItemsList.push({ term, def });
+        }
+      }
+
+      renderParsedRows();
+    }
+
+    function renderParsedRows() {
+      const container = document.getElementById('parsedResultsContainer');
+      const listEl = document.getElementById('parsedRowsList');
+      const countBadge = document.getElementById('parsedCountBadge');
+      const importBtn = document.getElementById('parsedImportBtn');
+
+      countBadge.textContent = parsedItemsList.length;
+
+      if (parsedItemsList.length === 0) {
+        container.classList.add('hidden');
+        importBtn.disabled = true;
+        return;
+      }
+
+      container.classList.remove('hidden');
+      importBtn.disabled = false;
+
+      listEl.innerHTML = parsedItemsList.map((item, index) => `
+        <div class="flex items-center gap-1.5 p-1 bg-zinc-800/80 rounded-xl border border-zinc-700/60">
+          <input 
+            type="text" 
+            value="${escapeHtml(item.term)}" 
+            placeholder="Термин" 
+            onchange="updateParsedItem(${index}, 'term', this.value)" 
+            class="flex-1 px-2.5 py-1.5 text-xs bg-zinc-900 border border-zinc-700 rounded-lg text-white font-mono focus:border-indigo-500 focus:outline-none"
+          >
+          <input 
+            type="text" 
+            value="${escapeHtml(item.def)}" 
+            placeholder="Перевод" 
+            onchange="updateParsedItem(${index}, 'def', this.value)" 
+            class="flex-1 px-2.5 py-1.5 text-xs bg-zinc-900 border border-zinc-700 rounded-lg text-white focus:border-indigo-500 focus:outline-none"
+          >
+          <button type="button" onclick="removeParsedItem(${index})" class="px-2 py-1 text-zinc-500 hover:text-rose-400 text-sm">&times;</button>
+        </div>
+      `).join('');
+    }
+
+    function updateParsedItem(index, key, val) {
+      if (parsedItemsList[index]) {
+        parsedItemsList[index][key] = val.trim();
+      }
+    }
+
+    function removeParsedItem(index) {
+      parsedItemsList.splice(index, 1);
+      renderParsedRows();
+    }
+
+    function addParsedBlankRow() {
+      parsedItemsList.unshift({ term: '', def: '' });
+      renderParsedRows();
+    }
+
+    function saveParsedResultsToDeck() {
+      const valid = parsedItemsList.filter(item => item.term && item.def);
+      if (valid.length === 0) {
+        alert("Заполните хотя бы один термин и перевод!");
+        return;
+      }
+
+      const activeDeck = getActiveDeck();
+      for (let item of valid) {
+        activeDeck.cards.push({
+          id: Date.now() + Math.random().toString(36).substring(2, 6),
+          term: item.term,
+          def: item.def
+        });
+      }
+
+      saveDecks();
+      renderTermsList();
+      updateDeckWordCount();
+      closeModal('modalScan');
+
+      // Reset
+      document.getElementById('scannerRawInput').value = '';
+      parsedItemsList = [];
+      renderParsedRows();
+      switchView('deck');
+    }
+
+    // STATE & DATA MANAGEMENT
+    const STORAGE_KEY = 'quizli_medical_latin_v3';
+
+    const DEFAULT_DECKS = [
+      {
+        id: 'deck_anatomy_core',
+        name: 'Анатомический минимум',
+        cards: [
+          { id: '1', term: 'm. sphincter, eris m', def: 'мышца-сжиматель, сфинктер' },
+          { id: '2', term: 'foramen, inis n', def: 'отверстие' },
+          { id: '3', term: 'canalis, is m', def: 'канал' },
+          { id: '4', term: 'processus, us m', def: 'отросток' },
+          { id: '5', term: 'caput, itis n', def: 'голова, головка' },
+          { id: '6', term: 'articulatio, onis f', def: 'сустав' },
+          { id: '7', term: 'facies, ei f', def: 'поверхность, лицо' },
+          { id: '8', term: 'vertebra, ae f', def: 'позвонок' }
+        ]
+      }
+    ];
+
+    let appState = {
+      decks: [],
+      activeDeckId: '',
+      currentView: 'practice', // 'practice' | 'deck' | 'results'
+      direction: 'def_to_term', // 'def_to_term' (RU -> LA) or 'term_to_def' (LA -> RU)
+      quizCards: [],
+      currentIndex: 0,
+      correctCount: 0,
+      mistakeCount: 0,
+      missedCards: [],
+      awaitingNext: false
+    };
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          appState.decks = parsed.decks || DEFAULT_DECKS;
+          appState.activeDeckId = parsed.activeDeckId || appState.decks[0].id;
+        } else {
+          appState.decks = DEFAULT_DECKS;
+          appState.activeDeckId = DEFAULT_DECKS[0].id;
+        }
+      } catch (e) {
+        appState.decks = DEFAULT_DECKS;
+        appState.activeDeckId = DEFAULT_DECKS[0].id;
+      }
+    }
+
+    function saveDecks() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          decks: appState.decks,
+          activeDeckId: appState.activeDeckId
+        }));
+      } catch (e) {}
+    }
+
+    function getActiveDeck() {
+      return appState.decks.find(d => d.id === appState.activeDeckId) || appState.decks[0];
+    }
+
+    // VIEW ROUTING
+    function switchView(viewName) {
+      appState.currentView = viewName;
+
+      document.getElementById('viewPractice').classList.toggle('hidden', viewName !== 'practice');
+      document.getElementById('viewDeck').classList.toggle('hidden', viewName !== 'deck');
+      document.getElementById('viewResults').classList.toggle('hidden', viewName !== 'results');
+
+      const trainBtn = document.getElementById('navTrainBtn');
+      const deckBtn = document.getElementById('navDeckBtn');
+
+      if (viewName === 'practice') {
+        trainBtn.className = "px-3.5 py-1.5 rounded-[10px] transition-all bg-zinc-700 text-indigo-300 shadow-sm font-semibold";
+        deckBtn.className = "px-3.5 py-1.5 rounded-[10px] transition-all text-zinc-400 hover:text-white";
+        if (appState.quizCards.length === 0) startQuizSession();
+        focusInput();
+      } else if (viewName === 'deck') {
+        deckBtn.className = "px-3.5 py-1.5 rounded-[10px] transition-all bg-zinc-700 text-indigo-300 shadow-sm font-semibold";
+        trainBtn.className = "px-3.5 py-1.5 rounded-[10px] transition-all text-zinc-400 hover:text-white";
+        renderTermsList();
+      } else {
+        trainBtn.className = "px-3.5 py-1.5 rounded-[10px] transition-all text-zinc-400 hover:text-white";
+        deckBtn.className = "px-3.5 py-1.5 rounded-[10px] transition-all text-zinc-400 hover:text-white";
+      }
+
+      closeAllDropdowns();
+    }
+
+    // PRACTICE LOGIC & SPELLING CHECKER
+    function startQuizSession(onlyMistakes = false) {
+      const activeDeck = getActiveDeck();
+      if (!activeDeck || activeDeck.cards.length === 0) {
+        document.getElementById('promptText').textContent = "В колоде нет слов. Добавьте термины!";
+        document.getElementById('answerInput').disabled = true;
+        document.getElementById('submitActionBtn').disabled = true;
+        return;
+      }
+
+      document.getElementById('answerInput').disabled = false;
+      document.getElementById('submitActionBtn').disabled = false;
+
+      let source = onlyMistakes ? [...appState.missedCards] : [...activeDeck.cards];
+      if (source.length === 0) source = [...activeDeck.cards];
+
+      // Shuffle
+      appState.quizCards = source.sort(() => Math.random() - 0.5);
+      appState.currentIndex = 0;
+      appState.correctCount = 0;
+      appState.mistakeCount = 0;
+      appState.missedCards = [];
+      appState.awaitingNext = false;
+
+      updateStatsUI();
+      renderCurrentQuizCard();
+    }
+
+    function renderCurrentQuizCard() {
+      const card = appState.quizCards[appState.currentIndex];
+      if (!card) {
+        finishQuiz();
+        return;
+      }
+
+      appState.awaitingNext = false;
+      const cardEl = document.getElementById('quizCard');
+      const input = document.getElementById('answerInput');
+      const btnText = document.getElementById('btnText');
+      const feedback = document.getElementById('mistakeFeedback');
+
+      cardEl.classList.remove('shake-anim', 'border-emerald-500', 'border-rose-500');
+      feedback.classList.add('hidden');
+      input.value = '';
+      input.classList.remove('border-emerald-500', 'border-rose-500');
+      btnText.textContent = "Проверить";
+
+      const promptLabel = document.getElementById('promptTypeLabel');
+      const promptText = document.getElementById('promptText');
+
+      if (appState.direction === 'def_to_term') {
+        promptLabel.textContent = "Переведите на латынь (словарная форма):";
+        promptText.textContent = card.def;
+        input.placeholder = "Например: sphincter, eris m";
+      } else {
+        promptLabel.textContent = "Латинский термин (введите перевод):";
+        promptText.textContent = card.term;
+        input.placeholder = "Например: сжиматель, сфинктер";
+      }
+
+      const total = appState.quizCards.length;
+      document.getElementById('counterText').textContent = `${appState.currentIndex + 1} из ${total}`;
+      const progress = (appState.currentIndex / total) * 100;
+      document.getElementById('practiceProgressBar').style.width = `${progress}%`;
+
+      focusInput();
+    }
+
+    // Normalization with Latin medical diacritics tolerance
+    function normalize(str) {
+      return (str || '')
+        .toLowerCase()
+        .replace(/[\u2014\u2013\—]/g, '-')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      Sound.init();
+
+      if (appState.awaitingNext) {
+        nextCard();
+        return;
+      }
+
+      const card = appState.quizCards[appState.currentIndex];
+      if (!card) return;
+
+      const input = document.getElementById('answerInput');
+      const userVal = normalize(input.value);
+      if (!userVal) return;
+
+      const expected = appState.direction === 'def_to_term' ? card.term : card.def;
+      const expectedNorm = normalize(expected);
+
+      // Medical alternative tolerance: check comma/slash options
+      const expectedVariants = expectedNorm.split(/[\/\;]/).map(s => s.trim());
+      const isCorrect = (userVal === expectedNorm) || expectedVariants.includes(userVal);
+
+      const cardEl = document.getElementById('quizCard');
+      const btnText = document.getElementById('btnText');
+
+      if (isCorrect) {
+        Sound.success();
+        appState.correctCount++;
+        input.classList.add('border-emerald-500');
+        updateStatsUI();
+        appState.awaitingNext = true;
+        btnText.textContent = "Дальше ↵";
+        setTimeout(() => {
+          if (appState.awaitingNext) nextCard();
+        }, 380);
+      } else {
+        Sound.error();
+        appState.mistakeCount++;
+        appState.missedCards.push(card);
+        updateStatsUI();
+
+        cardEl.classList.add('shake-anim');
+        input.classList.add('border-rose-500');
+
+        const feedback = document.getElementById('mistakeFeedback');
+        const expectedDisplay = document.getElementById('expectedWordDisplay');
+        expectedDisplay.textContent = expected;
+        feedback.classList.remove('hidden');
+
+        appState.awaitingNext = true;
+        btnText.textContent = "Понятно, дальше ↵";
+      }
+    }
+
+    function nextCard() {
+      appState.currentIndex++;
+      if (appState.currentIndex >= appState.quizCards.length) {
+        finishQuiz();
+      } else {
+        renderCurrentQuizCard();
+      }
+    }
+
+    function finishQuiz() {
+      switchView('results');
+      document.getElementById('resCorrectCount').textContent = appState.correctCount;
+      document.getElementById('resMistakesCount').textContent = appState.mistakeCount;
+
+      const retryMistakesBtn = document.getElementById('retryOnlyMistakesBtn');
+      const missedContainer = document.getElementById('missedListContainer');
+      const missedList = document.getElementById('missedCardsList');
+
+      if (appState.missedCards.length > 0) {
+        retryMistakesBtn.classList.remove('hidden');
+        missedContainer.classList.remove('hidden');
+
+        // De-duplicate missed
+        const uniqueMissed = Array.from(new Set(appState.missedCards.map(c => c.id)))
+          .map(id => appState.missedCards.find(c => c.id === id));
+
+        missedList.innerHTML = uniqueMissed.map(c => `
+          <div class="p-2.5 rounded-xl bg-zinc-800 border border-zinc-700/60 flex items-center justify-between text-xs">
+            <span class="font-bold text-indigo-400 font-mono">${escapeHtml(c.term)}</span>
+            <span class="text-zinc-400">${escapeHtml(c.def)}</span>
+          </div>
+        `).join('');
+      } else {
+        retryMistakesBtn.classList.add('hidden');
+        missedContainer.classList.add('hidden');
+      }
+    }
+
+    function restartQuiz(onlyMistakes = false) {
+      switchView('practice');
+      startQuizSession(onlyMistakes);
+    }
+
+    function cycleTestMode() {
+      appState.direction = (appState.direction === 'def_to_term') ? 'term_to_def' : 'def_to_term';
+      const label = document.getElementById('directionLabel');
+      label.textContent = (appState.direction === 'def_to_term') 
+        ? "Режим: Русский → Латынь" 
+        : "Режим: Латынь → Русский";
+      restartQuiz(false);
+    }
+
+    function updateStatsUI() {
+      document.getElementById('statCorrect').textContent = `✓ ${appState.correctCount}`;
+      document.getElementById('statMistakes').textContent = `✗ ${appState.mistakeCount}`;
+    }
+
+    // TERMS MANAGER & DECK CRUD
+    function renderTermsList() {
+      const activeDeck = getActiveDeck();
+      document.getElementById('deckTitleDisplay').textContent = activeDeck.name;
+      document.getElementById('activeDeckName').textContent = activeDeck.name;
+      updateDeckWordCount();
+
+      const listEl = document.getElementById('termsList');
+      if (activeDeck.cards.length === 0) {
+        listEl.innerHTML = `
+          <div class="text-center py-10 text-xs text-zinc-500 border border-dashed border-zinc-800 rounded-2xl">
+            В этой колоде пока нет терминов.<br>Добавьте первое слово или отсканируйте фото учебника!
+          </div>
+        `;
+        return;
+      }
+
+      listEl.innerHTML = activeDeck.cards.map((card, idx) => `
+        <div class="bg-zinc-900 border border-zinc-800 p-3 rounded-2xl flex items-center justify-between gap-3 text-xs">
+          <div class="flex-1 min-w-0">
+            <div class="font-bold text-indigo-400 font-mono tracking-wide truncate">${escapeHtml(card.term)}</div>
+            <div class="text-zinc-400 truncate mt-0.5">${escapeHtml(card.def)}</div>
+          </div>
+          <button onclick="deleteCard('${card.id}')" class="text-zinc-500 hover:text-rose-400 transition-colors p-1" title="Удалить">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          </button>
+        </div>
+      `).join('');
+    }
+
+    function updateDeckWordCount() {
+      const activeDeck = getActiveDeck();
+      document.getElementById('deckWordCount').textContent = activeDeck ? activeDeck.cards.length : 0;
+    }
+
+    function handleQuickAdd(e) {
+      e.preventDefault();
+      const termInput = document.getElementById('quickTerm');
+      const defInput = document.getElementById('quickDef');
+
+      const term = termInput.value.trim();
+      const def = defInput.value.trim();
+      if (!term || !def) return;
+
+      const activeDeck = getActiveDeck();
+      activeDeck.cards.unshift({
+        id: Date.now().toString(),
+        term,
+        def
+      });
+
+      saveDecks();
+      termInput.value = '';
+      defInput.value = '';
+      document.getElementById('quickSuggestBox').classList.add('hidden');
+      renderTermsList();
+      termInput.focus();
+    }
+
+    function handleModalAdd(e) {
+      e.preventDefault();
+      const term = document.getElementById('modalTerm').value.trim();
+      const def = document.getElementById('modalDef').value.trim();
+      if (!term || !def) return;
+
+      const activeDeck = getActiveDeck();
+      activeDeck.cards.unshift({
+        id: Date.now().toString(),
+        term,
+        def
+      });
+
+      saveDecks();
+      closeModal('modalSingle');
+      document.getElementById('modalTerm').value = '';
+      document.getElementById('modalDef').value = '';
+      document.getElementById('latinSuggestBox').classList.add('hidden');
+      renderTermsList();
+    }
+
+    function deleteCard(id) {
+      const activeDeck = getActiveDeck();
+      activeDeck.cards = activeDeck.cards.filter(c => c.id !== id);
+      saveDecks();
+      renderTermsList();
+    }
+
+    function handleBulkImportSubmit(e) {
+      e.preventDefault();
+      const raw = document.getElementById('bulkInputArea').value;
+      if (!raw.trim()) return;
+
+      const lines = raw.split('\n');
+      const delimiterRegex = /\s*[\u2014\u2013\-\:\—\|\t]\s*/;
+      const activeDeck = getActiveDeck();
+
+      let added = 0;
+      for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
+        if (delimiterRegex.test(line)) {
+          const parts = line.split(delimiterRegex);
+          const term = parts[0].trim();
+          const def = parts.slice(1).join(' - ').trim();
+          if (term && def) {
+            activeDeck.cards.push({ id: Date.now() + Math.random().toString(), term, def });
+            added++;
+          }
+        }
+      }
+
+      saveDecks();
+      closeModal('modalBulk');
+      document.getElementById('bulkInputArea').value = '';
+      renderTermsList();
+      alert(`Успешно импортировано карточек: ${added}`);
+    }
+
+    // DECK DROPDOWN & MANAGEMENT
+    function toggleDeckDropdown() {
+      const dd = document.getElementById('deckDropdown');
+      dd.classList.toggle('hidden');
+      if (!dd.classList.contains('hidden')) {
+        renderDeckDropdownList();
+      }
+    }
+
+    function renderDeckDropdownList() {
+      const listEl = document.getElementById('deckDropdownList');
+      listEl.innerHTML = appState.decks.map(deck => `
+        <button 
+          onclick="selectDeck('${deck.id}')" 
+          class="w-full text-left px-3 py-2 text-xs rounded-xl flex items-center justify-between transition-colors ${deck.id === appState.activeDeckId ? 'bg-indigo-950/60 text-indigo-300 font-semibold' : 'text-zinc-300 hover:bg-zinc-800'}"
+        >
+          <span class="truncate">${escapeHtml(deck.name)}</span>
+          <span class="text-[11px] text-zinc-500 ml-2 font-mono">${deck.cards.length}</span>
+        </button>
+      `).join('');
+    }
+
+    function selectDeck(id) {
+      appState.activeDeckId = id;
+      saveDecks();
+      closeAllDropdowns();
+      renderTermsList();
+      if (appState.currentView === 'practice') {
+        restartQuiz(false);
+      }
+    }
+
+    function openNewDeckModal() {
+      closeAllDropdowns();
+      openModal('modalNewDeck');
+      document.getElementById('newDeckTitleInput').focus();
+    }
+
+    function handleCreateDeck(e) {
+      e.preventDefault();
+      const title = document.getElementById('newDeckTitleInput').value.trim();
+      if (!title) return;
+
+      const newDeck = {
+        id: 'deck_' + Date.now(),
+        name: title,
+        cards: []
+      };
+
+      appState.decks.push(newDeck);
+      appState.activeDeckId = newDeck.id;
+      saveDecks();
+      closeModal('modalNewDeck');
+      document.getElementById('newDeckTitleInput').value = '';
+      renderTermsList();
+      switchView('deck');
+    }
+
+    function deleteCurrentDeck() {
+      if (appState.decks.length <= 1) {
+        alert("Нельзя удалить единственную колоду!");
+        return;
+      }
+      if (!confirm(`Удалить колоду "${getActiveDeck().name}"?`)) return;
+
+      appState.decks = appState.decks.filter(d => d.id !== appState.activeDeckId);
+      appState.activeDeckId = appState.decks[0].id;
+      saveDecks();
+      renderTermsList();
+      restartQuiz(false);
+    }
+
+    function exportCurrentDeck() {
+      const activeDeck = getActiveDeck();
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(activeDeck, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `${activeDeck.name.replace(/\s+/g, '_')}_terms.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    // MODAL UTILITIES
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+      document.getElementById(id).classList.add('flex');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+      document.getElementById(id).classList.remove('flex');
+    }
+
+    function closeAllDropdowns() {
+      document.getElementById('deckDropdown').classList.add('hidden');
+    }
+
+    function focusInput() {
+      setTimeout(() => {
+        const inp = document.getElementById('answerInput');
+        if (inp && !inp.disabled) inp.focus();
+      }, 100);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // Global Key Listener for Quick Study
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeAllDropdowns();
+        closeModal('modalSingle');
+        closeModal('modalScan');
+        closeModal('modalBulk');
+        closeModal('modalNewDeck');
+      }
+    });
+
+    // Close popups on click outside
+    document.addEventListener('click', (e) => {
+      const dd = document.getElementById('deckDropdown');
+      if (dd && !dd.contains(e.target) && !e.target.closest('#activeDeckName') && !e.target.closest('button[onclick="toggleDeckDropdown()"]')) {
+        dd.classList.add('hidden');
+      }
+    });
+
+    // Init App
+    window.onload = function() {
+      loadState();
+      renderTermsList();
+      startQuizSession();
+    };
+  </script>
+</body>
+</html>
